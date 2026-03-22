@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import type { Code, Root } from 'mdast'
+import type { Code } from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkMath from 'remark-math'
 import remarkMdx from 'remark-mdx'

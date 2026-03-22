@@ -6,10 +6,14 @@ import { describe, expect, it } from 'vitest'
 
 import { extractVirtualUnits } from '../../src/extract/markdown.js'
 import { buildLineStarts } from '../../src/utils/lines.js'
+import { resolveEslintMdxParityAssets } from '../../tools/upstream-eslint-mdx.ts'
 
-const FIXTURES_ROOT = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures')
+const upstream = await resolveEslintMdxParityAssets()
+const describeParityMatrix = upstream ? describe : describe.skip
+const FIXTURES_ROOT =
+  upstream?.fixturesRoot ?? path.resolve(process.cwd(), '__missing_upstream_fixtures__')
 
-describe('parity matrix', () => {
+describeParityMatrix('parity matrix', () => {
   it('matches upstream parse-error fixture set', async () => {
     const fixtures = await fg(['**/*.{md,mdx}'], {
       cwd: FIXTURES_ROOT,

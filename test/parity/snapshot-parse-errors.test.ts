@@ -6,12 +6,14 @@ import { describe, expect, it } from 'vitest'
 
 import { extractVirtualUnits } from '../../src/extract/markdown.js'
 import { buildLineStarts } from '../../src/utils/lines.js'
+import { resolveEslintMdxParityAssets } from '../../tools/upstream-eslint-mdx.ts'
 
-const FIXTURES_ROOT = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures')
-const SNAPSHOT_PATH = path.resolve(
-  process.cwd(),
-  '../eslint-mdx/test/__snapshots__/fixtures.test.ts.snap',
-)
+const upstream = await resolveEslintMdxParityAssets()
+const describeSnapshotParity = upstream ? describe : describe.skip
+const FIXTURES_ROOT =
+  upstream?.fixturesRoot ?? path.resolve(process.cwd(), '__missing_upstream_fixtures__')
+const SNAPSHOT_PATH =
+  upstream?.snapshotPath ?? path.resolve(process.cwd(), '__missing_upstream_snapshot__.snap')
 
 function parseExpectedParseErrorsFromSnapshot(snapshotText: string): string[] {
   const expected = new Set<string>()
@@ -35,7 +37,7 @@ function parseExpectedParseErrorsFromSnapshot(snapshotText: string): string[] {
   return [...expected].sort()
 }
 
-describe('parity matrix (snapshot-driven)', () => {
+describeSnapshotParity('parity matrix (snapshot-driven)', () => {
   it('matches upstream fatal parse-error fixture set from snapshot', async () => {
     const [snapshotText, fixtures] = await Promise.all([
       fs.readFile(SNAPSHOT_PATH, 'utf8'),

@@ -1,12 +1,11 @@
 import fs from 'node:fs/promises'
-import path from 'node:path'
 
 import { execa } from 'execa'
 
-const SNAPSHOT_PATH = path.resolve(
-  process.cwd(),
-  '../eslint-mdx/test/__snapshots__/fixtures.test.ts.snap',
-)
+import {
+  parityAssetsMissingMessage,
+  resolveEslintMdxParityAssets,
+} from '../tools/upstream-eslint-mdx.ts'
 
 const REMARK_COVERED_RULES = new Set([
   'remark-lint-fenced-code-flag',
@@ -26,8 +25,14 @@ function normalizeRuleId(ruleId: string): string {
 }
 
 async function getSnapshotRuleIds(): Promise<string[]> {
-  const snapshotText = await fs.readFile(SNAPSHOT_PATH, 'utf8')
-  const rules = [...snapshotText.matchAll(/"ruleId": "([^"]+)"/gu)].map(match => match[1])
+  const upstream = await resolveEslintMdxParityAssets()
+  if (!upstream) {
+    return []
+  }
+
+  const { snapshotPath } = upstream
+  const snapshotText = await fs.readFile(snapshotPath, 'utf8')
+  const rules = [...snapshotText.matchAll(/"ruleId": "([^"]+)"/gu)].map((match) => match[1])
   return [...new Set(rules)].sort()
 }
 
@@ -36,12 +41,28 @@ async function getOxlintRules(): Promise<Set<string>> {
     cwd: process.cwd(),
   })
   const parsed = JSON.parse(result.stdout) as Array<{ value: string }>
-  return new Set(parsed.map(rule => rule.value))
+  return new Set(parsed.map((rule) => rule.value))
+}
+
+const upstream = await resolveEslintMdxParityAssets()
+
+if (!upstream) {
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        skipped: true,
+        reason: parityAssetsMissingMessage(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  process.exit(0)
 }
 
 const [snapshotRules, oxlintRules] = await Promise.all([getSnapshotRuleIds(), getOxlintRules()])
 
-const remainingUnsupported = snapshotRules.filter(ruleId => {
+const remainingUnsupported = snapshotRules.filter((ruleId) => {
   if (REMARK_COVERED_RULES.has(ruleId)) {
     return false
   }
@@ -55,6 +76,7 @@ process.stdout.write(
     {
       snapshotRuleCount: snapshotRules.length,
       remainingUnsupportedCount: remainingUnsupported.length,
+      paritySource: upstream.source,
       remainingUnsupported,
     },
     null,

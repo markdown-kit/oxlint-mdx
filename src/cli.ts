@@ -274,10 +274,7 @@ async function main(): Promise<number> {
     try {
       return extractVirtualUnits(document, {
         languageMapper: config.languageMapper,
-      }).map((unit) => ({
-        ...unit,
-        id: `unit_${globalUnitCounter++}`,
-      }))
+      }).map((unit) => Object.assign(unit, { id: `unit_${globalUnitCounter++}` }))
     } catch (err) {
       mappedDiagnostics.push(createParseDiagnostic(document, err))
       return []

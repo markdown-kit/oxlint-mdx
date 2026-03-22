@@ -32,12 +32,16 @@ const DEFAULT_CONFIG: OxlintMdxConfig = {
 }
 
 async function maybeReadConfig(configPath: string): Promise<Partial<OxlintMdxConfig> | null> {
+  let source: string
   try {
-    const source = await fs.readFile(configPath, 'utf8')
-    return JSON.parse(source) as Partial<OxlintMdxConfig>
-  } catch {
-    return null
+    source = await fs.readFile(configPath, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw err
   }
+  return JSON.parse(source) as Partial<OxlintMdxConfig>
 }
 
 function mergeConfig(
@@ -62,10 +66,7 @@ function mergeConfig(
       ...base.oxlint,
       ...user?.oxlint,
       configPath: cli.oxlintConfigPath ?? user?.oxlint?.configPath,
-      extraArgs: [
-        ...(user?.oxlint?.extraArgs ?? base.oxlint.extraArgs),
-        ...cli.oxlintArgs,
-      ],
+      extraArgs: [...(user?.oxlint?.extraArgs ?? base.oxlint.extraArgs), ...cli.oxlintArgs],
     },
   }
 

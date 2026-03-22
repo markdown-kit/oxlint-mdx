@@ -144,9 +144,20 @@ export async function runRemarkBridge(
 
   try {
     await processor.process(file)
-  } catch (caught) {
-    const err = caught as { reason?: string; message?: string }
-    file.message(err.reason ?? err.message ?? 'Unknown remark processing error').fatal = true
+  } catch (err) {
+    const caught =
+      typeof err === 'object' && err !== null
+        ? (err as { reason?: unknown; message?: unknown })
+        : undefined
+    const reason =
+      typeof caught?.reason === 'string'
+        ? caught.reason
+        : typeof caught?.message === 'string'
+          ? caught.message
+          : err instanceof Error
+            ? err.message
+            : 'Unknown remark processing error'
+    file.message(reason).fatal = true
   }
 
   const diagnostics = file.messages.map((message) =>

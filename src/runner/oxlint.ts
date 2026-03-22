@@ -43,18 +43,11 @@ function buildArgs(options: OxlintRunnerOptions, files: string[]): string[] {
   return args
 }
 
-async function runCommand(command: string, args: string[], cwd: string) {
-  return execa(command, args, {
-    cwd,
-    reject: false,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
-}
+const EXECA_OPTS = { reject: false, stdout: 'pipe', stderr: 'pipe' } as const
 
 async function runOxlint(args: string[], cwd: string) {
   try {
-    return await runCommand('oxlint', args, cwd)
+    return await execa('oxlint', args, { cwd, ...EXECA_OPTS })
   } catch (err) {
     if (!(err instanceof ExecaError) || err.code !== 'ENOENT') {
       throw err
@@ -62,14 +55,14 @@ async function runOxlint(args: string[], cwd: string) {
   }
 
   try {
-    return await runCommand('pnpm', ['dlx', 'oxlint', ...args], cwd)
+    return await execa('pnpm', ['dlx', 'oxlint', ...args], { cwd, ...EXECA_OPTS })
   } catch (err) {
     if (!(err instanceof ExecaError) || err.code !== 'ENOENT') {
       throw err
     }
   }
 
-  return runCommand('npx', ['oxlint', ...args], cwd)
+  return execa('npx', ['oxlint', ...args], { cwd, ...EXECA_OPTS })
 }
 
 function sanitizeVirtualPath(relativePath: string): string {
@@ -78,7 +71,7 @@ function sanitizeVirtualPath(relativePath: string): string {
     return path.basename(normalized)
   }
 
-  const parts = normalized.split(path.sep).filter(part => part !== '..' && part !== '')
+  const parts = normalized.split(path.sep).filter((part) => part !== '..' && part !== '')
   if (parts.length === 0) {
     return 'unit.js'
   }

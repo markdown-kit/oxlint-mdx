@@ -71,3 +71,15 @@ Typical release flow:
 1. Bump version in `package.json`
 2. `pnpm run test`
 3. `pnpm publish --access public`
+
+## Upstream parity assets
+
+Parity scripts/tests use upstream `eslint-mdx` fixture snapshots.
+
+Lookup order:
+
+1. `ESLINT_MDX_REPO_ROOT`
+2. sibling checkout at `../eslint-mdx`
+3. installed `eslint-mdx` package root (only if it includes test assets)
+
+If assets are unavailable, parity scripts emit a `skipped` JSON payload and upstream parity tests are skipped.

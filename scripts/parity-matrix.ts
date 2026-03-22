@@ -5,6 +5,10 @@ import fg from 'fast-glob'
 
 import { extractVirtualUnits } from '../src/extract/markdown.js'
 import { buildLineStarts } from '../src/utils/lines.js'
+import {
+  parityAssetsMissingMessage,
+  resolveEslintMdxParityAssets,
+} from '../tools/upstream-eslint-mdx.ts'
 
 interface MatrixRow {
   fixture: string
@@ -26,8 +30,6 @@ interface MatrixRow {
   languages: string[]
 }
 
-const FIXTURES_ROOT = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures')
-
 function countKinds(units: ReturnType<typeof extractVirtualUnits>) {
   return {
     total: units.length,
@@ -41,9 +43,9 @@ function countKinds(units: ReturnType<typeof extractVirtualUnits>) {
   }
 }
 
-async function buildMatrix(): Promise<MatrixRow[]> {
+async function buildMatrix(fixturesRoot: string): Promise<MatrixRow[]> {
   const fixturePaths = await fg(['**/*.{md,mdx}'], {
-    cwd: FIXTURES_ROOT,
+    cwd: fixturesRoot,
     absolute: true,
     onlyFiles: true,
   })
@@ -52,7 +54,7 @@ async function buildMatrix(): Promise<MatrixRow[]> {
 
   for (const fixturePath of fixturePaths) {
     const fixtureText = await fs.readFile(fixturePath, 'utf8')
-    const relativePath = path.relative(FIXTURES_ROOT, fixturePath)
+    const relativePath = path.relative(fixturesRoot, fixturePath)
 
     try {
       const units = extractVirtualUnits(
@@ -81,21 +83,32 @@ async function buildMatrix(): Promise<MatrixRow[]> {
         units: countKinds(units),
         languages: [...new Set(units.map((unit) => unit.language))].sort(),
       })
-    } catch (caught) {
-      const err = caught as {
-        reason?: string
-        message?: string
-        line?: number
-        column?: number
-      }
+    } catch (err) {
+      const caught =
+        typeof err === 'object' && err !== null
+          ? (err as {
+              reason?: unknown
+              message?: unknown
+              line?: unknown
+              column?: unknown
+            })
+          : undefined
+      const errorMessage =
+        typeof caught?.reason === 'string'
+          ? caught.reason
+          : typeof caught?.message === 'string'
+            ? caught.message
+            : err instanceof Error
+              ? err.message
+              : 'Unknown parse error'
 
       rows.push({
         fixture: relativePath,
         status: 'parse-error',
         parseError: {
-          message: err.reason ?? err.message ?? 'Unknown parse error',
-          line: typeof err.line === 'number' ? err.line : 1,
-          column: typeof err.column === 'number' ? err.column : 1,
+          message: errorMessage,
+          line: typeof caught?.line === 'number' ? caught.line : 1,
+          column: typeof caught?.column === 'number' ? caught.column : 1,
         },
         units: {
           total: 0,
@@ -114,7 +127,23 @@ async function buildMatrix(): Promise<MatrixRow[]> {
   return rows.sort((a, b) => a.fixture.localeCompare(b.fixture))
 }
 
-const matrix = await buildMatrix()
+const upstream = await resolveEslintMdxParityAssets()
+
+if (!upstream) {
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        skipped: true,
+        reason: parityAssetsMissingMessage(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  process.exit(0)
+}
+
+const matrix = await buildMatrix(upstream.fixturesRoot)
 const summary = {
   totalFixtures: matrix.length,
   parsedFixtures: matrix.filter((row) => row.status === 'ok').length,
@@ -125,6 +154,7 @@ process.stdout.write(
   `${JSON.stringify(
     {
       summary,
+      paritySource: upstream.source,
       matrix,
     },
     null,

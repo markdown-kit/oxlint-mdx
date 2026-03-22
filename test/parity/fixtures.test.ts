@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest'
 
 import { extractVirtualUnits } from '../../src/extract/markdown.js'
 import { buildLineStarts } from '../../src/utils/lines.js'
+import { resolveEslintMdxParityAssets } from '../../tools/upstream-eslint-mdx.ts'
 
-const FIXTURE_ROOT = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures')
+const upstream = await resolveEslintMdxParityAssets()
+const describeUpstreamParity = upstream ? describe : describe.skip
+const FIXTURE_ROOT =
+  upstream?.fixturesRoot ?? path.resolve(process.cwd(), '__missing_upstream_fixtures__')
 
 async function readFixture(relativePath: string) {
   const filePath = path.join(FIXTURE_ROOT, relativePath)
@@ -17,7 +21,7 @@ async function readFixture(relativePath: string) {
   }
 }
 
-describe('parity: upstream eslint-mdx fixtures', () => {
+describeUpstreamParity('parity: upstream eslint-mdx fixtures', () => {
   it('handles basic.mdx and extracts mixed unit kinds', async () => {
     const fixture = await readFixture('basic.mdx')
     const units = extractVirtualUnits(
@@ -60,12 +64,7 @@ describe('parity: upstream eslint-mdx fixtures', () => {
   })
 
   it('normalizes whitespace in code-fence filename metadata', async () => {
-    const source = [
-      '```js filename="my test file.js"',
-      'const value = 1',
-      '```',
-      '',
-    ].join('\n')
+    const source = ['```js filename="my test file.js"', 'const value = 1', '```', ''].join('\n')
 
     const units = extractVirtualUnits(
       {
@@ -80,7 +79,7 @@ describe('parity: upstream eslint-mdx fixtures', () => {
       },
     )
 
-    const fenced = units.find(unit => unit.kind === 'fenced-code')
+    const fenced = units.find((unit) => unit.kind === 'fenced-code')
     expect(fenced?.virtualFilePath).toBe('my_test_file.js')
   })
 
@@ -108,9 +107,9 @@ describe('parity: upstream eslint-mdx fixtures', () => {
           typescript: 'ts',
         },
       },
-    ).filter(unit => unit.kind === 'fenced-code')
+    ).filter((unit) => unit.kind === 'fenced-code')
 
-    expect(units.map(unit => unit.virtualFilePath)).toEqual(['0.js', '1.ts'])
+    expect(units.map((unit) => unit.virtualFilePath)).toEqual(['0.js', '1.ts'])
   })
 
   it('handles jsx-in-list.mdx without parser/extraction errors', async () => {

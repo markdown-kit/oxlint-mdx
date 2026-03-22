@@ -5,7 +5,19 @@ import path from 'node:path'
 import { execa } from 'execa'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { resolveEslintMdxParityAssets } from '../../tools/upstream-eslint-mdx.ts'
+
 const createdDirs: string[] = []
+const upstream = await resolveEslintMdxParityAssets()
+const itWithUpstream = upstream ? it : it.skip
+
+function upstreamFixturePath(relativePath: string): string {
+  if (!upstream) {
+    throw new Error('Upstream eslint-mdx parity assets are not available')
+  }
+
+  return path.join(upstream.fixturesRoot, relativePath)
+}
 
 async function createTempDir() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'oxlint-mdx-cli-'))
@@ -122,116 +134,136 @@ afterEach(async () => {
 })
 
 describe('cli integration', () => {
-  it('does not report parse-error for upstream 336.mdx fixture', async () => {
-    const fixturePath = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures/336.mdx')
+  itWithUpstream(
+    'does not report parse-error for upstream 336.mdx fixture',
+    async () => {
+      const fixturePath = upstreamFixturePath('336.mdx')
 
-    const result = await execa(
-      'node',
-      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
-      {
-        cwd: process.cwd(),
-        reject: false,
-      },
-    )
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
+        {
+          cwd: process.cwd(),
+          reject: false,
+        },
+      )
 
-    const output = JSON.parse(result.stdout) as {
-      diagnostics: Array<{ code: string }>
-    }
+      const output = JSON.parse(result.stdout) as {
+        diagnostics: Array<{ code: string }>
+      }
 
-    expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
-      false,
-    )
-  }, 20_000)
+      expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
+        false,
+      )
+    },
+    20_000,
+  )
 
-  it('does not report parse-error for upstream 576.mdx fixture', async () => {
-    const fixturePath = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures/576.mdx')
+  itWithUpstream(
+    'does not report parse-error for upstream 576.mdx fixture',
+    async () => {
+      const fixturePath = upstreamFixturePath('576.mdx')
 
-    const result = await execa(
-      'node',
-      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
-      {
-        cwd: process.cwd(),
-        reject: false,
-      },
-    )
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
+        {
+          cwd: process.cwd(),
+          reject: false,
+        },
+      )
 
-    const output = JSON.parse(result.stdout) as {
-      diagnostics: Array<{ code: string }>
-    }
+      const output = JSON.parse(result.stdout) as {
+        diagnostics: Array<{ code: string }>
+      }
 
-    expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
-      false,
-    )
-  }, 20_000)
+      expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
+        false,
+      )
+    },
+    20_000,
+  )
 
-  it('matches upstream parse-error behavior for comments.mdx fixture', async () => {
-    const fixturePath = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures/comments.mdx')
+  itWithUpstream(
+    'matches upstream parse-error behavior for comments.mdx fixture',
+    async () => {
+      const fixturePath = upstreamFixturePath('comments.mdx')
 
-    const result = await execa(
-      'node',
-      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
-      {
-        cwd: process.cwd(),
-        reject: false,
-      },
-    )
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
+        {
+          cwd: process.cwd(),
+          reject: false,
+        },
+      )
 
-    expect(result.exitCode).toBe(1)
-    const output = JSON.parse(result.stdout) as {
-      diagnostics: Array<{ code: string; range: { start: { line: number } } }>
-    }
+      expect(result.exitCode).toBe(1)
+      const output = JSON.parse(result.stdout) as {
+        diagnostics: Array<{ code: string; range: { start: { line: number } } }>
+      }
 
-    expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
-      true,
-    )
-    expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 2)).toBe(true)
-  }, 20_000)
+      expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
+        true,
+      )
+      expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 2)).toBe(true)
+    },
+    20_000,
+  )
 
-  it('matches upstream parse-error behavior for details.mdx fixture', async () => {
-    const fixturePath = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures/details.mdx')
+  itWithUpstream(
+    'matches upstream parse-error behavior for details.mdx fixture',
+    async () => {
+      const fixturePath = upstreamFixturePath('details.mdx')
 
-    const result = await execa(
-      'node',
-      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
-      {
-        cwd: process.cwd(),
-        reject: false,
-      },
-    )
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
+        {
+          cwd: process.cwd(),
+          reject: false,
+        },
+      )
 
-    expect(result.exitCode).toBe(1)
-    const output = JSON.parse(result.stdout) as {
-      diagnostics: Array<{ code: string; range: { start: { line: number } } }>
-    }
+      expect(result.exitCode).toBe(1)
+      const output = JSON.parse(result.stdout) as {
+        diagnostics: Array<{ code: string; range: { start: { line: number } } }>
+      }
 
-    expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
-      true,
-    )
-    expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 1)).toBe(true)
-  }, 20_000)
+      expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
+        true,
+      )
+      expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 1)).toBe(true)
+    },
+    20_000,
+  )
 
-  it('matches upstream parse-error behavior for acorn.mdx fixture', async () => {
-    const fixturePath = path.resolve(process.cwd(), '../eslint-mdx/test/fixtures/acorn.mdx')
+  itWithUpstream(
+    'matches upstream parse-error behavior for acorn.mdx fixture',
+    async () => {
+      const fixturePath = upstreamFixturePath('acorn.mdx')
 
-    const result = await execa(
-      'node',
-      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
-      {
-        cwd: process.cwd(),
-        reject: false,
-      },
-    )
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', fixturePath],
+        {
+          cwd: process.cwd(),
+          reject: false,
+        },
+      )
 
-    expect(result.exitCode).toBe(1)
-    const output = JSON.parse(result.stdout) as {
-      diagnostics: Array<{ code: string; range: { start: { line: number } } }>
-    }
+      expect(result.exitCode).toBe(1)
+      const output = JSON.parse(result.stdout) as {
+        diagnostics: Array<{ code: string; range: { start: { line: number } } }>
+      }
 
-    expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
-      true,
-    )
-    expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 9)).toBe(true)
-  }, 20_000)
+      expect(output.diagnostics.some((diagnostic) => diagnostic.code === 'mdx/parse-error')).toBe(
+        true,
+      )
+      expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line === 9)).toBe(true)
+    },
+    20_000,
+  )
 
   it('reports embedded mdx fence diagnostics with remapped source locations', async () => {
     const fixtureDir = await createTempDir()
@@ -521,9 +553,8 @@ describe('cli integration', () => {
       diagnostics: Array<{ filePath: string }>
     }
 
-    const paths = output.diagnostics.map(diagnostic => diagnostic.filePath)
+    const paths = output.diagnostics.map((diagnostic) => diagnostic.filePath)
     expect(paths).toContain(firstPath)
     expect(paths).toContain(secondPath)
   }, 20_000)
-
 })

@@ -30,8 +30,7 @@
     "./package.json": "./package.json"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -44,17 +43,21 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "lint:ci": "oxlint --deny-warnings .",
     "lint:fix": "oxlint --fix .",
-    "lint:fix-unsafe": "oxlint --import-plugin   --type-aware --type-check --vitest-plugin --fix --fix-suggestions --fix-dangerously .",
-    "check:fix-suggestions": "oxlint --import-plugin   --type-aware --type-check --vitest-plugin --fix --fix-suggestions . && oxfmt --write ."
+    "lint:fix-unsafe": "oxlint --import-plugin node-plugin --type-aware --type-check --vitest-plugin --fix --fix-suggestions --fix-dangerously .",
+    "check:fix-suggestions": "oxlint --import-plugin node-plugin --type-aware --type-check --vitest-plugin --fix --fix-suggestions . && oxfmt --write .",
+    "check": "pnpm run format:check && pnpm run lint:ci && pnpm run typecheck",
+    "check:full": "pnpm run check && pnpm run test"
   },
   "dependencies": {
+    "@oxlint/plugins": "^1.56.0",
     "execa": "^9.6.1",
     "fast-glob": "^3.3.3",
     "remark-frontmatter": "^5.0.0",
-    "remark-lint-fenced-code-flag": "^4.0.0",
-    "remark-lint-no-duplicate-headings-in-section": "^4.0.0",
-    "remark-lint-no-multiple-toplevel-headings": "^4.0.0",
+    "remark-lint-fenced-code-flag": "^4.2.0",
+    "remark-lint-no-duplicate-headings-in-section": "^4.0.1",
+    "remark-lint-no-multiple-toplevel-headings": "^4.0.1",
     "remark-math": "^6.0.0",
     "remark-mdx": "^3.1.1",
     "remark-parse": "^11.0.0",
@@ -67,10 +70,13 @@
   },
   "devDependencies": {
     "@types/mdast": "^4.0.4",
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.5.0",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
+    "oxlint-tsgolint": "^0.17.0",
     "tsx": "^4.21.0",
-    "typescript": "beta",
-    "vitest": "beta"
+    "typescript": "rc",
+    "vitest": "4.1.0"
   },
   "engines": {
     "node": ">=22"
