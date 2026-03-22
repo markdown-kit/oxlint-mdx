@@ -1,6 +1,6 @@
 {
   "name": "@markdownkit/oxlint-mdx",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Oxlint-first MD/MDX linter with diagnostic and autofix remapping",
   "keywords": [
     "lint",
@@ -73,7 +73,7 @@
     "@types/node": "^25.5.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
-    "oxlint-tsgolint": "^0.17.0",
+    "oxlint-tsgolint": "^0.17.1",
     "tsx": "^4.21.0",
     "typescript": "rc",
     "vitest": "4.1.0"
