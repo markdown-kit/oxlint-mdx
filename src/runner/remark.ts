@@ -18,6 +18,7 @@ import type {
   RemarkDiagnostic,
   SourceDocument,
 } from '../types.js'
+import { getStructuredErrorInfo } from '../validation.js'
 
 interface LoadedRemarkConfig {
   plugins: Array<[unknown, unknown?]>
@@ -25,6 +26,28 @@ interface LoadedRemarkConfig {
 }
 
 const configLoadCache = new Map<string, (filePath: string) => Promise<LoadedRemarkConfig>>()
+
+function readPlaceRange(message: {
+  place?: { start?: { line?: number; column?: number }; end?: { line?: number; column?: number } }
+}):
+  | { start?: { line?: number; column?: number }; end?: { line?: number; column?: number } }
+  | undefined {
+  const { place } = message
+  if (place == null || typeof place !== 'object' || !('start' in place || 'end' in place)) {
+    return undefined
+  }
+
+  return {
+    start: {
+      line: place.start?.line,
+      column: place.start?.column,
+    },
+    end: {
+      line: place.end?.line,
+      column: place.end?.column,
+    },
+  }
+}
 
 function getConfigLoader(cwd: string, configPath?: string) {
   const cacheKey = `${cwd}\0${configPath ?? ''}`
@@ -42,6 +65,8 @@ function getConfigLoader(cwd: string, configPath?: string) {
     detectConfig: true,
   })
 
+  // SAFETY: unified-engine exposes a callback-based loader, but its public typings
+  // do not preserve the resolved config shape through `promisify`.
   const loader = promisify(configuration.load.bind(configuration)) as (
     filePath: string,
   ) => Promise<LoadedRemarkConfig>
@@ -68,14 +93,7 @@ function normalizeDiagnostic(
     place?: { start?: { line?: number; column?: number }; end?: { line?: number; column?: number } }
   },
 ): RemarkDiagnostic {
-  const { place } = message
-  const placeRange =
-    place != null && typeof place === 'object' && 'start' in place
-      ? (place as {
-          start?: { line?: number; column?: number }
-          end?: { line?: number; column?: number }
-        })
-      : undefined
+  const placeRange = readPlaceRange(message)
 
   const startLine = placeRange?.start?.line ?? message.line ?? 1
   const startColumn = placeRange?.start?.column ?? message.column ?? 1
@@ -115,12 +133,15 @@ export async function runRemarkBridge(
 
   if (options.applyDefaultLintRules ?? true) {
     processor
+      // SAFETY: these plugins expose unified-compatible transformers, but their generic
+      // typings are narrower than `processor.use` expects under NodeNext resolution.
       .use(remarkLintFencedCodeFlag as never)
       .use(remarkLintNoDuplicateHeadingsInSection as never)
       .use(remarkLintNoMultipleToplevelHeadings as never)
   }
 
   if (options.applyDefaultLinkValidation ?? true) {
+    // SAFETY: remark-validate-links is a valid unified plugin with incomplete generic metadata.
     processor.use(remarkValidateLinks as never)
   }
 
@@ -130,8 +151,10 @@ export async function runRemarkBridge(
 
   for (const [plugin, pluginOptions] of loaded.plugins ?? []) {
     if (pluginOptions === undefined) {
+      // SAFETY: user config plugins are resolved by unified-engine and must be passed through verbatim.
       processor.use(plugin as never)
     } else {
+      // SAFETY: user config plugins are resolved by unified-engine and must be passed through verbatim.
       processor.use(plugin as never, pluginOptions as never)
     }
   }
@@ -145,18 +168,8 @@ export async function runRemarkBridge(
   try {
     await processor.process(file)
   } catch (err) {
-    const caught =
-      typeof err === 'object' && err !== null
-        ? (err as { reason?: unknown; message?: unknown })
-        : undefined
-    const reason =
-      typeof caught?.reason === 'string'
-        ? caught.reason
-        : typeof caught?.message === 'string'
-          ? caught.message
-          : err instanceof Error
-            ? err.message
-            : 'Unknown remark processing error'
+    const details = getStructuredErrorInfo(err)
+    const reason = details.reason ?? details.message ?? 'Unknown remark processing error'
     file.message(reason).fatal = true
   }
 

@@ -11,6 +11,7 @@ import type {
   OxlintRunnerResult,
   VirtualUnit,
 } from '../types.js'
+import { parseOxlintJsonOutput } from '../validation.js'
 
 function normalizeDiagnosticPath(filename: string, cwd: string): string {
   if (path.isAbsolute(filename)) {
@@ -80,12 +81,7 @@ function sanitizeVirtualPath(relativePath: string): string {
 }
 
 function parseOutput(stdout: string): OxlintJsonOutput {
-  const trimmed = stdout.trim()
-  if (!trimmed) {
-    return { diagnostics: [] }
-  }
-
-  return JSON.parse(trimmed) as OxlintJsonOutput
+  return parseOxlintJsonOutput(stdout)
 }
 
 export async function runOxlintOnUnits(
@@ -116,7 +112,21 @@ export async function runOxlintOnUnits(
     const lintFiles = [...filePathByUnitId.values()]
     const args = buildArgs(options, lintFiles)
     const commandResult = await runOxlint(args, options.cwd)
-    const parsed = parseOutput(commandResult.stdout)
+
+    const stdout = commandResult.stdout ?? ''
+    const stderr = (commandResult.stderr ?? '').trim()
+    const { exitCode } = commandResult
+
+    // Oxlint emits diagnostics as JSON on stdout and uses exit code 1 to signal
+    // lint findings. An empty stdout with a non-zero exit and stderr content
+    // means the linter itself failed (e.g. a bad config or internal error).
+    // Surface that instead of silently parsing zero diagnostics and exiting 0,
+    // which would make CI report a clean run for a broken lint.
+    if (stdout.trim() === '' && typeof exitCode === 'number' && exitCode !== 0 && stderr !== '') {
+      throw new Error(`oxlint failed (exit code ${exitCode}): ${stderr}`)
+    }
+
+    const parsed = parseOutput(stdout)
 
     const diagnostics: OxlintRawDiagnostic[] = parsed.diagnostics.map((diagnostic) => {
       const normalizedPath = normalizeDiagnosticPath(diagnostic.filename, options.cwd)

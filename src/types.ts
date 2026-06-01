@@ -127,6 +127,8 @@ export interface RemarkBridgeResult {
   fixedText?: string
 }
 
+export type OxlintMdxUserRemarkConfig = Omit<Partial<RemarkBridgeOptions>, 'cwd' | 'applyFixes'>
+
 export interface OxlintMdxConfig {
   include: string[]
   ignore: string[]
@@ -137,6 +139,15 @@ export interface OxlintMdxConfig {
     configPath?: string
     extraArgs: string[]
   }
+}
+
+export interface OxlintMdxUserConfig {
+  include?: OxlintMdxConfig['include']
+  ignore?: OxlintMdxConfig['ignore']
+  languageMapper?: OxlintMdxConfig['languageMapper']
+  lintableLanguages?: OxlintMdxConfig['lintableLanguages']
+  remark?: OxlintMdxUserRemarkConfig
+  oxlint?: Partial<OxlintMdxConfig['oxlint']>
 }
 
 export interface CliOptions extends FixMode {

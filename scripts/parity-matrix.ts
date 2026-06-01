@@ -5,6 +5,7 @@ import fg from 'fast-glob'
 
 import { extractVirtualUnits } from '../src/extract/markdown.js'
 import { buildLineStarts } from '../src/utils/lines.js'
+import { getStructuredErrorInfo } from '../src/validation.js'
 import {
   parityAssetsMissingMessage,
   resolveEslintMdxParityAssets,
@@ -84,31 +85,15 @@ async function buildMatrix(fixturesRoot: string): Promise<MatrixRow[]> {
         languages: [...new Set(units.map((unit) => unit.language))].sort(),
       })
     } catch (err) {
-      const caught =
-        typeof err === 'object' && err !== null
-          ? (err as {
-              reason?: unknown
-              message?: unknown
-              line?: unknown
-              column?: unknown
-            })
-          : undefined
-      const errorMessage =
-        typeof caught?.reason === 'string'
-          ? caught.reason
-          : typeof caught?.message === 'string'
-            ? caught.message
-            : err instanceof Error
-              ? err.message
-              : 'Unknown parse error'
+      const details = getStructuredErrorInfo(err)
 
       rows.push({
         fixture: relativePath,
         status: 'parse-error',
         parseError: {
-          message: errorMessage,
-          line: typeof caught?.line === 'number' ? caught.line : 1,
-          column: typeof caught?.column === 'number' ? caught.column : 1,
+          message: details.message,
+          line: typeof details.line === 'number' ? details.line : 1,
+          column: typeof details.column === 'number' ? details.column : 1,
         },
         units: {
           total: 0,

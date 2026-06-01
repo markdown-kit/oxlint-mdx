@@ -16,23 +16,18 @@ import { runOxlintOnUnits } from './runner/oxlint.js'
 import { runRemarkBridge } from './runner/remark.js'
 import type { CliOptions, MappedDiagnostic, SourceDocument, TextEdit } from './types.js'
 import { buildLineStarts, offsetToPosition, positionToOffset } from './utils/lines.js'
+import { getStructuredErrorInfo } from './validation.js'
 
 function createParseDiagnostic(document: SourceDocument, error: unknown): MappedDiagnostic {
-  const err = error as {
-    reason?: string
-    message?: string
-    line?: number
-    column?: number
-  }
-
-  const line = typeof err.line === 'number' && err.line > 0 ? err.line : 1
-  const column = typeof err.column === 'number' && err.column > 0 ? err.column : 1
+  const details = getStructuredErrorInfo(error)
+  const line = typeof details.line === 'number' && details.line > 0 ? details.line : 1
+  const column = typeof details.column === 'number' && details.column > 0 ? details.column : 1
 
   return {
     filePath: document.filePath,
     code: 'mdx/parse-error',
     severity: 'error',
-    message: err.reason ?? err.message ?? 'Failed to parse markdown/MDX document',
+    message: details.reason ?? details.message ?? 'Failed to parse markdown/MDX document',
     range: {
       start: { line, column, offset: 0 },
       end: { line, column, offset: 0 },

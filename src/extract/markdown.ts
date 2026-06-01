@@ -1,6 +1,5 @@
 import path from 'node:path'
 
-import type { Code } from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkMath from 'remark-math'
 import remarkMdx from 'remark-mdx'
@@ -18,7 +17,7 @@ interface PositionLike {
 
 interface NodeWithPosition {
   type: string
-  value?: string
+  value?: unknown
   lang?: string | null
   meta?: string | null
   data?: {
@@ -26,10 +25,29 @@ interface NodeWithPosition {
       range?: [number, number]
     }
   }
-  attributes?: NodeWithPosition[]
+  attributes?: MdxJsxAttributeLike[]
   name?: string | null
   position?: PositionLike
-  children?: NodeWithPosition[]
+  children?: unknown[]
+}
+
+interface MdxJsxAttributeNode extends NodeWithPosition {
+  type: 'mdxJsxAttribute'
+  value?: string | null | NodeWithPosition
+}
+
+interface MdxJsxExpressionAttributeNode extends NodeWithPosition {
+  type: 'mdxJsxExpressionAttribute'
+}
+
+type MdxJsxAttributeLike = MdxJsxAttributeNode | MdxJsxExpressionAttributeNode
+
+interface FencedCodeNode extends NodeWithPosition {
+  type: 'code'
+  value: string
+  lang?: string | null
+  meta?: string | null
+  position: { start: { offset: number }; end: { offset: number } }
 }
 
 const LEADING_WHITESPACE_REGEX = /^[>\s]*/u
@@ -47,6 +65,33 @@ function hasOffsets(node: NodeWithPosition): node is NodeWithPosition & {
     typeof node.position.start.offset === 'number' &&
     typeof node.position.end.offset === 'number'
   )
+}
+
+function isNodeWithPosition(value: unknown): value is NodeWithPosition {
+  return (
+    typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
+  )
+}
+
+function isFencedCodeNode(value: unknown): value is FencedCodeNode {
+  return (
+    isNodeWithPosition(value) &&
+    value.type === 'code' &&
+    hasOffsets(value) &&
+    typeof value.value === 'string'
+  )
+}
+
+function getAttributeExpressionNode(attribute: MdxJsxAttributeLike): NodeWithPosition | undefined {
+  if (attribute.type === 'mdxJsxExpressionAttribute') {
+    return attribute
+  }
+
+  if (isNodeWithPosition(attribute.value)) {
+    return attribute.value
+  }
+
+  return undefined
 }
 
 function getDirectiveComment(node: NodeWithPosition): string {
@@ -192,7 +237,11 @@ function parseCodeBlockFileName(meta?: string | null): string | undefined {
   return fileName ?? undefined
 }
 
-function walk(node: NodeWithPosition, visit: (entry: NodeWithPosition) => void): void {
+function walk(node: unknown, visit: (entry: NodeWithPosition) => void): void {
+  if (!isNodeWithPosition(node)) {
+    return
+  }
+
   visit(node)
   for (const child of node.children ?? []) {
     walk(child, visit)
@@ -341,9 +390,7 @@ export function extractVirtualUnits(
     })
   }
 
-  walk(root as unknown as NodeWithPosition, (rawNode) => {
-    const node = rawNode
-
+  walk(root, (node) => {
     if (
       node.type === 'html' ||
       node.type === 'mdxFlowExpression' ||
@@ -357,16 +404,13 @@ export function extractVirtualUnits(
     }
 
     if (node.type === 'code') {
-      if (!hasOffsets(node) || typeof node.lang !== 'string' || !node.lang.trim()) {
+      if (!isFencedCodeNode(node) || typeof node.lang !== 'string' || !node.lang.trim()) {
         pendingDirectives = []
         return
       }
 
-      const codeNode = node as NodeWithPosition &
-        Code & {
-          position: { start: { offset: number }; end: { offset: number } }
-        }
-      const rawLanguage = typeof node.lang === 'string' ? node.lang : ''
+      const codeNode = node
+      const rawLanguage = codeNode.lang ?? ''
       const language = rawLanguage.trim().split(/\s+/u)[0]
       const mappedLanguage = mapLanguage(language, options.languageMapper)
       const metaFileName = parseCodeBlockFileName(codeNode.meta)
@@ -451,10 +495,7 @@ export function extractVirtualUnits(
       }
 
       for (const attribute of node.attributes ?? []) {
-        const valueExpressionNode =
-          attribute.type === 'mdxJsxAttribute'
-            ? (attribute.value as NodeWithPosition | undefined)
-            : attribute
+        const valueExpressionNode = getAttributeExpressionNode(attribute)
 
         if (!valueExpressionNode || typeof valueExpressionNode !== 'object') {
           continue

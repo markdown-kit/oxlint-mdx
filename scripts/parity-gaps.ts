@@ -7,6 +7,21 @@ import {
   resolveEslintMdxParityAssets,
 } from '../tools/upstream-eslint-mdx.ts'
 
+function parseOxlintRulesOutput(stdout: string): string[] {
+  const parsed = JSON.parse(stdout)
+
+  if (
+    !Array.isArray(parsed) ||
+    parsed.some(
+      (entry) => typeof entry !== 'object' || entry === null || typeof entry.value !== 'string',
+    )
+  ) {
+    throw new TypeError('Invalid Oxlint --rules JSON output')
+  }
+
+  return parsed.map((rule) => rule.value)
+}
+
 const REMARK_COVERED_RULES = new Set([
   'remark-lint-fenced-code-flag',
   'remark-lint-no-duplicate-headings-in-section',
@@ -40,8 +55,7 @@ async function getOxlintRules(): Promise<Set<string>> {
   const result = await execa('pnpm', ['dlx', 'oxlint', '--rules', '-f', 'json'], {
     cwd: process.cwd(),
   })
-  const parsed = JSON.parse(result.stdout) as Array<{ value: string }>
-  return new Set(parsed.map((rule) => rule.value))
+  return new Set(parseOxlintRulesOutput(result.stdout))
 }
 
 const upstream = await resolveEslintMdxParityAssets()

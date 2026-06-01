@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import type { CliOptions, OxlintMdxConfig } from '../types.js'
+import type { CliOptions, OxlintMdxConfig, OxlintMdxUserConfig } from '../types.js'
+import { isErrnoException, parseOxlintMdxUserConfig } from '../validation.js'
 
 const DEFAULT_LANGUAGE_MAPPER: Record<string, string> = {
   ecmascript: 'js',
@@ -31,22 +32,23 @@ const DEFAULT_CONFIG: OxlintMdxConfig = {
   },
 }
 
-async function maybeReadConfig(configPath: string): Promise<Partial<OxlintMdxConfig> | null> {
+async function maybeReadConfig(configPath: string): Promise<OxlintMdxUserConfig | null> {
   let source: string
   try {
     source = await fs.readFile(configPath, 'utf8')
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (isErrnoException(err) && err.code === 'ENOENT') {
       return null
     }
     throw err
   }
-  return JSON.parse(source) as Partial<OxlintMdxConfig>
+
+  return parseOxlintMdxUserConfig(source, configPath)
 }
 
 function mergeConfig(
   base: OxlintMdxConfig,
-  user: Partial<OxlintMdxConfig> | null,
+  user: OxlintMdxUserConfig | null,
   cli: CliOptions,
 ): OxlintMdxConfig {
   const merged: OxlintMdxConfig = {

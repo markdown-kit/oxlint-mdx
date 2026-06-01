@@ -55,6 +55,35 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+/**
+ * Convert a UTF-8 byte offset into a UTF-16 (JavaScript string) offset within
+ * `text`.
+ *
+ * Oxlint (oxc, Rust) reports diagnostic spans as UTF-8 byte offsets/lengths,
+ * whereas the extraction range map and line-start tables are built in JS string
+ * units. Feeding byte offsets straight into the UTF-16 machinery shifts every
+ * position after a multi-byte character (accents, emoji, CJK). This bridges the
+ * two coordinate systems. Offsets that fall on a code-point boundary (the case
+ * for real token spans) map exactly; an offset that lands mid–code-point maps to
+ * the start of the enclosing code point.
+ */
+export function byteOffsetToCharOffset(text: string, byteOffset: number): number {
+  if (byteOffset <= 0) {
+    return 0
+  }
+
+  let bytes = 0
+  let chars = 0
+  for (const codePoint of text) {
+    if (bytes >= byteOffset) {
+      break
+    }
+    bytes += Buffer.byteLength(codePoint, 'utf8')
+    chars += codePoint.length
+  }
+  return chars
+}
+
 export function getLineStartOffset(text: string, offset: number): number {
   const index = text.lastIndexOf('\n', Math.max(0, offset - 1))
   return index === -1 ? 0 : index + 1

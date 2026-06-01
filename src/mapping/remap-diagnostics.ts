@@ -4,7 +4,7 @@ import type {
   SourceDocument,
   VirtualUnit,
 } from '../types.js'
-import { offsetToPosition } from '../utils/lines.js'
+import { byteOffsetToCharOffset, offsetToPosition } from '../utils/lines.js'
 import { resolveMappedOffset } from './range-map.js'
 
 const UNSATISFIABLE_RULE_CODES = new Set(['eslint(eol-last)', 'eslint(unicode-bom)'])
@@ -20,8 +20,14 @@ export function remapDiagnostic(
 ): MappedDiagnostic {
   const span = diagnostic.labels[0]?.span
 
-  const virtualStart = span?.offset ?? unit.prefixLength
-  const virtualEnd = span ? span.offset + span.length : virtualStart
+  // Oxlint span offsets/lengths are UTF-8 byte counts into the virtual lint
+  // text; convert them to UTF-16 offsets before resolving through the range map
+  // (which is built in JS string units). Without this, any diagnostic after a
+  // multi-byte character lands on the wrong column.
+  const virtualStart = span ? byteOffsetToCharOffset(unit.lintText, span.offset) : unit.prefixLength
+  const virtualEnd = span
+    ? byteOffsetToCharOffset(unit.lintText, span.offset + span.length)
+    : virtualStart
 
   const sourceStartOffset = resolveMappedOffset(
     unit.rangeMap,
