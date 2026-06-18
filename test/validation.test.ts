@@ -33,4 +33,8 @@ describe('validation', () => {
       ),
     ).toThrow('severity must be "error" or "warning"')
   })
+
+  it('treats oxlint no-file output as an empty diagnostics result', () => {
+    expect(parseOxlintJsonOutput('No files found, exiting.')).toEqual({ diagnostics: [] })
+  })
 })

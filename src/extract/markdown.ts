@@ -414,7 +414,7 @@ export function extractVirtualUnits(
       const language = rawLanguage.trim().split(/\s+/u)[0]
       const mappedLanguage = mapLanguage(language, options.languageMapper)
       const metaFileName = parseCodeBlockFileName(codeNode.meta)
-      const defaultFileName = `${fencedCodeCounter}.${language}`
+      const defaultFileName = `${fencedCodeCounter}.${mappedLanguage}`
       fencedCodeCounter += 1
       const directives = pendingDirectives
       pendingDirectives = []

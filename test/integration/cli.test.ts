@@ -279,7 +279,7 @@ describe('cli integration', () => {
 
     const result = await execa(
       'node',
-      ['--import', 'tsx', 'src/cli.ts', '--format', 'json', inputPath],
+      ['--import', 'tsx', 'src/cli.ts', '--cwd', fixtureDir, '--format', 'json', inputPath],
       {
         cwd: process.cwd(),
         reject: false,
@@ -296,6 +296,50 @@ describe('cli integration', () => {
       output.diagnostics.some((diagnostic) => diagnostic.message.includes('Unexpected character')),
     ).toBe(true)
     expect(output.diagnostics.some((diagnostic) => diagnostic.range.start.line >= 4)).toBe(true)
+  }, 20_000)
+
+  it('resolves embedded markdown links relative to the source document', async () => {
+    const fixtureDir = await createTempDir()
+    const imageDir = path.join(fixtureDir, 'images')
+    const inputPath = path.join(fixtureDir, 'embedded-link.md')
+
+    await fs.mkdir(imageDir, { recursive: true })
+    await fs.writeFile(path.join(imageDir, 'dashboard.png'), 'png fixture', 'utf8')
+    await execa('git', ['init'], { cwd: fixtureDir })
+    await execa('git', ['remote', 'add', 'origin', 'https://example.com/markdownkit/fixture.git'], {
+      cwd: fixtureDir,
+    })
+    await fs.writeFile(
+      inputPath,
+      [
+        '# Guide',
+        '',
+        '```markdown',
+        '![Screenshot of the main dashboard](./images/dashboard.png)',
+        '',
+        '```',
+        '',
+      ].join('\n'),
+      'utf8',
+    )
+
+    const result = await execa(
+      'node',
+      ['--import', 'tsx', 'src/cli.ts', '--format', 'json', inputPath],
+      {
+        cwd: process.cwd(),
+        reject: false,
+      },
+    )
+
+    expect(result.exitCode).toBe(0)
+    const output = JSON.parse(result.stdout) as {
+      diagnostics: Array<{ code: string }>
+    }
+
+    expect(output.diagnostics.some((diagnostic) => diagnostic.code.includes('missing-file'))).toBe(
+      false,
+    )
   }, 20_000)
 
   it('reports parser diagnostics instead of crashing on invalid mdx', async () => {

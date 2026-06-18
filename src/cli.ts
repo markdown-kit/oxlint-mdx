@@ -14,7 +14,13 @@ import { filterDiagnosticsWithMdxRemarkDirectives } from './remark/directives.js
 import { formatJson, formatStylish } from './report/format.js'
 import { runOxlintOnUnits } from './runner/oxlint.js'
 import { runRemarkBridge } from './runner/remark.js'
-import type { CliOptions, MappedDiagnostic, SourceDocument, TextEdit } from './types.js'
+import type {
+  CliOptions,
+  MappedDiagnostic,
+  SourceDocument,
+  TextEdit,
+  VirtualUnit,
+} from './types.js'
 import { buildLineStarts, offsetToPosition, positionToOffset } from './utils/lines.js'
 import { getStructuredErrorInfo } from './validation.js'
 
@@ -245,6 +251,14 @@ function remapEmbeddedRemarkDiagnostic(
   }
 }
 
+function embeddedRemarkFilePath(unit: VirtualUnit): string {
+  const sourceDir = path.dirname(unit.sourceFilePath)
+  const sourceStem = path.basename(unit.sourceFilePath, path.extname(unit.sourceFilePath))
+  const extension = unit.language === 'mdx' ? '.mdx' : '.md'
+
+  return path.join(sourceDir, `${sourceStem}.${unit.id}${extension}`)
+}
+
 async function main(): Promise<number> {
   const cliOptions = parseArgs(process.argv.slice(2))
   const config = await resolveConfig(cliOptions)
@@ -303,8 +317,15 @@ async function main(): Promise<number> {
     if (!document) {
       continue
     }
-    mappedDiagnostics.push(remapDiagnostic(diagnostic, unit, document))
+    const mapped = remapDiagnostic(diagnostic, unit, document)
+    if (mapped) {
+      mappedDiagnostics.push(mapped)
+    }
   }
+
+  // Track documents whose offsets were invalidated by an oxlint --fix rewrite so
+  // we do not remap stale-offset diagnostics against them later in this run.
+  const documentsModifiedByFix = new Set<string>()
 
   if (cliOptions.fix || cliOptions.fixSuggestions || cliOptions.fixDangerously) {
     const editsByFilePath = collectDocumentEdits(oxlintResult.rewrittenUnitTexts, unitById)
@@ -313,11 +334,17 @@ async function main(): Promise<number> {
       if (!document) {
         continue
       }
-      const nextText = applyEdits(document.text, edits)
+      const nextText = applyEdits(document.text, edits, (dropped) => {
+        process.stderr.write(
+          `oxlint-mdx: skipped an overlapping autofix in ${filePath} ` +
+            `(offsets ${dropped.startOffset}-${dropped.endOffset}); re-run to apply remaining fixes.\n`,
+        )
+      })
       if (nextText !== document.text) {
         await fs.writeFile(filePath, nextText, 'utf8')
         document.text = nextText
         document.lineStarts = buildLineStarts(nextText)
+        documentsModifiedByFix.add(filePath)
       }
     }
   }
@@ -333,10 +360,21 @@ async function main(): Promise<number> {
         continue
       }
 
+      // The unit's offsets/rangeMap were computed against the pre-fix document.
+      // If an oxlint --fix rewrote that document this run, remapping embedded
+      // remark diagnostics would land on stale positions — defer them to the
+      // next run (which re-extracts against the fixed source).
+      if (documentsModifiedByFix.has(unit.sourceFilePath)) {
+        process.stderr.write(
+          `oxlint-mdx: deferred embedded remark diagnostics for ${unit.sourceFilePath} ` +
+            `(document changed by --fix this run); re-run to see them.\n`,
+        )
+        continue
+      }
+
       const remarkResult = await runRemarkBridge(
         {
-          filePath:
-            unit.language === 'mdx' ? `${unit.virtualFilePath}.mdx` : `${unit.virtualFilePath}.md`,
+          filePath: embeddedRemarkFilePath(unit),
           text: unit.lintText,
           lineStarts: buildLineStarts(unit.lintText),
         },

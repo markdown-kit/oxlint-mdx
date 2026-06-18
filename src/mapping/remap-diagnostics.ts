@@ -17,7 +17,7 @@ export function remapDiagnostic(
   diagnostic: OxlintRawDiagnostic,
   unit: VirtualUnit,
   sourceDocument: SourceDocument,
-): MappedDiagnostic {
+): MappedDiagnostic | null {
   const span = diagnostic.labels[0]?.span
 
   // Oxlint span offsets/lengths are UTF-8 byte counts into the virtual lint
@@ -28,6 +28,13 @@ export function remapDiagnostic(
   const virtualEnd = span
     ? byteOffsetToCharOffset(unit.lintText, span.offset + span.length)
     : virtualStart
+
+  // Drop diagnostics that fall entirely inside the injected directive-comment
+  // prefix (e.g. `/* eslint ... */`). That text does not exist in the source
+  // document, so remapping it would land on unrelated real code.
+  if (unit.prefixLength > 0 && virtualEnd <= unit.prefixLength) {
+    return null
+  }
 
   const sourceStartOffset = resolveMappedOffset(
     unit.rangeMap,

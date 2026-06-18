@@ -35,6 +35,28 @@ describe('extractVirtualUnits', () => {
     expect(codeUnit?.rangeMap.length).toBeGreaterThan(0)
   })
 
+  it('uses mapped language extensions for default fenced-code virtual filenames', () => {
+    const text = ['```typescript', 'const value: number = 1', '```', ''].join('\n')
+
+    const units = extractVirtualUnits(
+      {
+        filePath: '/tmp/example.md',
+        text,
+        lineStarts: buildLineStarts(text),
+      },
+      {
+        languageMapper: {
+          typescript: 'ts',
+        },
+      },
+    )
+
+    const codeUnit = units.find((unit) => unit.kind === 'fenced-code')
+
+    expect(codeUnit?.language).toBe('ts')
+    expect(codeUnit?.virtualFilePath).toBe('0.ts')
+  })
+
   it('extracts mdx expressions and esm nodes', () => {
     const text = ['export const answer = 42', '', '# Title {answer}', '', '{answer + 1}', ''].join(
       '\n',

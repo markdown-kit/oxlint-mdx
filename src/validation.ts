@@ -275,6 +275,10 @@ export function parseOxlintJsonOutput(stdout: string): OxlintJsonOutput {
     return { diagnostics: [] }
   }
 
+  if (/^No files found\b/u.test(trimmed)) {
+    return { diagnostics: [] }
+  }
+
   let parsed: unknown
 
   try {
