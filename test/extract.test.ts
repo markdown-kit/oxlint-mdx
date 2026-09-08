@@ -35,6 +35,40 @@ describe('extractVirtualUnits', () => {
     expect(codeUnit?.rangeMap.length).toBeGreaterThan(0)
   })
 
+  it('maps every line of an indented fenced block back to its real source offset', () => {
+    const text = [
+      '# T',
+      '',
+      '- item',
+      '',
+      '  ```js',
+      '  function f() {',
+      '    return 1',
+      '  }',
+      '  ```',
+      '',
+    ].join('\n')
+    const unit = extractVirtualUnits(
+      { filePath: '/tmp/indented.md', text, lineStarts: buildLineStarts(text) },
+      { languageMapper: false },
+    ).find((candidate) => candidate.kind === 'fenced-code')
+
+    expect(unit).toBeDefined()
+    const toSource = (virtualOffset: number) => {
+      let entry = unit!.rangeMap[0]
+      for (const candidate of unit!.rangeMap) {
+        if (candidate.virtualOffset <= virtualOffset) entry = candidate
+      }
+      return virtualOffset + entry.sourceOffsetDelta
+    }
+
+    for (const token of ['function', 'return', '}']) {
+      expect(text.slice(toSource(unit!.lintText.indexOf(token)))).toMatch(
+        new RegExp(`^${token.replace('}', '\\}')}`),
+      )
+    }
+  })
+
   it('uses mapped language extensions for default fenced-code virtual filenames', () => {
     const text = ['```typescript', 'const value: number = 1', '```', ''].join('\n')
 

@@ -165,7 +165,8 @@ function buildCodeBlockRangeMap(
   text: string,
   node: NodeWithPosition & { position: { start: { offset: number }; end: { offset: number } } },
   sourceStartOffset: number,
-  sourceText: string,
+  sourceEndOffset: number,
+  lintBody: string,
   prefixLength: number,
 ): { rangeMap: RangeMapEntry[]; baseIndent: string } {
   const lineStartOffset = getLineStartOffset(text, node.position.start.offset)
@@ -173,10 +174,12 @@ function buildCodeBlockRangeMap(
   const baseIndent = LEADING_WHITESPACE_REGEX.exec(leadingPrefix)?.[0] ?? ''
   const baseIndentLength = baseIndent.length
 
-  const virtualLines = sourceText.split('\n')
-  const sourceLines = text
-    .slice(sourceStartOffset, sourceStartOffset + sourceText.length)
-    .split('\n')
+  // The lint body is the mdast value (block indentation stripped); the source
+  // lines must come from the real source range, which is longer by the
+  // stripped indentation on every line. Slicing by the body's length instead
+  // truncated trailing lines and shifted every later mapping by the indent.
+  const virtualLines = lintBody.split('\n')
+  const sourceLines = text.slice(sourceStartOffset, sourceEndOffset).split('\n')
 
   const rangeMap: RangeMapEntry[] = [
     {
@@ -435,6 +438,7 @@ export function extractVirtualUnits(
         document.text,
         codeNode,
         start,
+        end,
         lintBody,
         prefixLength,
       )

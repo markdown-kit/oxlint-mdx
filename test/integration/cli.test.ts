@@ -123,6 +123,7 @@ async function runCli(args: string[], cwd: string, pathPrefix: string) {
     env: {
       ...process.env,
       PATH: `${pathPrefix}:${process.env.PATH ?? ''}`,
+      MARKDOWNKIT_OXLINT_PATH: path.join(pathPrefix, 'oxlint'),
     },
   })
 }

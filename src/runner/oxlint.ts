@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 
-import { execa, ExecaError } from 'execa'
+import { execa } from 'execa'
 
 import type {
   OxlintJsonOutput,
@@ -45,25 +46,13 @@ function buildArgs(options: OxlintRunnerOptions, files: string[]): string[] {
 }
 
 const EXECA_OPTS = { reject: false, stdout: 'pipe', stderr: 'pipe' } as const
+const require = createRequire(import.meta.url)
+const oxlintPackagePath = require.resolve('oxlint/package.json')
+const packagedOxlintExecutable = path.join(path.dirname(oxlintPackagePath), 'bin', 'oxlint')
 
 async function runOxlint(args: string[], cwd: string) {
-  try {
-    return await execa('oxlint', args, { cwd, ...EXECA_OPTS })
-  } catch (err) {
-    if (!(err instanceof ExecaError) || err.code !== 'ENOENT') {
-      throw err
-    }
-  }
-
-  try {
-    return await execa('pnpm', ['dlx', 'oxlint', ...args], { cwd, ...EXECA_OPTS })
-  } catch (err) {
-    if (!(err instanceof ExecaError) || err.code !== 'ENOENT') {
-      throw err
-    }
-  }
-
-  return execa('npx', ['oxlint', ...args], { cwd, ...EXECA_OPTS })
+  const oxlintExecutable = process.env.MARKDOWNKIT_OXLINT_PATH ?? packagedOxlintExecutable
+  return execa(oxlintExecutable, args, { cwd, ...EXECA_OPTS })
 }
 
 function sanitizeVirtualPath(relativePath: string): string {
