@@ -1,6 +1,6 @@
 {
   "name": "@markdownkit/oxlint-mdx",
-  "version": "2.2.3",
+  "version": "4.0.0",
   "description": "Oxlint-first MD/MDX linter with diagnostic and autofix remapping",
   "keywords": [
     "lint",
