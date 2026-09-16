@@ -52,10 +52,10 @@
     "release": "release-kit"
   },
   "dependencies": {
-    "@oxlint/plugins": "^1.78.0",
+    "@oxlint/plugins": "^1.83.0",
     "execa": "^10.0.1",
     "fast-glob": "^3.3.3",
-    "oxlint": "1.78.0",
+    "oxlint": "1.83.0",
     "remark-frontmatter": "^5.0.0",
     "remark-lint-fenced-code-flag": "^4.2.0",
     "remark-lint-no-duplicate-headings-in-section": "^4.0.1",
@@ -71,14 +71,14 @@
     "vfile": "^6.0.3"
   },
   "devDependencies": {
-    "@entro314labs/release-kit": "^1.0.2",
+    "@entro314labs/release-kit": "^2.9.4",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^26.2.0",
-    "oxfmt": "^0.63.0",
+    "@types/node": "^26.6.1",
+    "oxfmt": "^0.68.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "rc",
-    "vitest": "4.1.10"
+    "vitest": "5.0.1"
   },
   "engines": {
     "node": ">=24.19.0"
