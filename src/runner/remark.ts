@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { promisify } from 'node:util'
 
+import { execa } from 'execa'
 import remarkLintFencedCodeFlag from 'remark-lint-fenced-code-flag'
 import remarkLintNoDuplicateHeadingsInSection from 'remark-lint-no-duplicate-headings-in-section'
 import remarkLintNoMultipleToplevelHeadings from 'remark-lint-no-multiple-toplevel-headings'
@@ -26,6 +27,29 @@ interface LoadedRemarkConfig {
 }
 
 const configLoadCache = new Map<string, (filePath: string) => Promise<LoadedRemarkConfig>>()
+const originRemoteCache = new Map<string, Promise<boolean>>()
+
+/**
+ * Whether `directory` is inside a Git repository with an `origin` remote.
+ *
+ * remark-validate-links detects the hosted repository from `origin` when no
+ * `repository` option is given and throws if that fails (no Git, no repo, or
+ * no `origin`). Callers pass `repository: false` in that case so link
+ * validation still runs against the local file system.
+ */
+function hasOriginRemote(directory: string): Promise<boolean> {
+  const existing = originRemoteCache.get(directory)
+  if (existing) {
+    return existing
+  }
+
+  const pending = execa('git', ['remote', 'get-url', 'origin'], {
+    cwd: directory,
+    reject: false,
+  }).then((result) => result.exitCode === 0 && result.stdout.trim() !== '')
+  originRemoteCache.set(directory, pending)
+  return pending
+}
 
 function readPlaceRange(message: {
   place?: { start?: { line?: number; column?: number }; end?: { line?: number; column?: number } }
@@ -141,8 +165,11 @@ export async function runRemarkBridge(
   }
 
   if (options.applyDefaultLinkValidation ?? true) {
+    const linkOptions = (await hasOriginRemote(path.dirname(path.resolve(document.filePath))))
+      ? undefined
+      : { repository: false }
     // SAFETY: remark-validate-links is a valid unified plugin with incomplete generic metadata.
-    processor.use(remarkValidateLinks as never)
+    processor.use(remarkValidateLinks as never, linkOptions as never)
   }
 
   if (isMdx) {

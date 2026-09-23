@@ -343,6 +343,30 @@ describe('cli integration', () => {
     )
   }, 20_000)
 
+  it('validates links without errors outside a git repository with an origin remote', async () => {
+    const fixtureDir = await createTempDir()
+    const inputPath = path.join(fixtureDir, 'no-git.md')
+
+    await fs.writeFile(inputPath, '# Title\n\nSee [missing](./missing.md).\n', 'utf8')
+
+    const result = await execa(
+      'node',
+      ['--import', 'tsx', 'src/cli.ts', '--format', 'json', inputPath],
+      {
+        cwd: process.cwd(),
+        reject: false,
+      },
+    )
+
+    const output = JSON.parse(result.stdout) as {
+      diagnostics: Array<{ code: string }>
+    }
+
+    const codes = output.diagnostics.map((diagnostic) => diagnostic.code)
+    expect(codes).not.toContain('remark/unknown')
+    expect(codes.some((code) => code.includes('missing-file'))).toBe(true)
+  }, 20_000)
+
   it('reports parser diagnostics instead of crashing on invalid mdx', async () => {
     const fixtureDir = await createTempDir()
     const inputPath = path.join(fixtureDir, 'invalid.mdx')
