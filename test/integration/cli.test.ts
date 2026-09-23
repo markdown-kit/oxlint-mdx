@@ -448,6 +448,47 @@ describe('cli integration', () => {
     expect(rewritten).toContain('const total = 10')
   }, 20_000)
 
+  it('changes only the fixed code block on --fix with the remark bridge enabled', async () => {
+    const fixtureDir = await createTempDir()
+    const fakeBin = await createTempDir()
+    await createFakeOxlint(fakeBin)
+
+    const inputPath = path.join(fixtureDir, 'frontmatter-gfm.md')
+    const original = [
+      '---',
+      'title: Example',
+      'tags: [a, b]',
+      '---',
+      '',
+      '# Title',
+      '',
+      '- [ ] open task',
+      '- [x] done task',
+      '',
+      'Some ~~struck~~ text.',
+      '',
+      '| a | b |',
+      '|---|---|',
+      '| 1 | 2 |',
+      '',
+      '```js',
+      'var total = 10',
+      '```',
+      '',
+    ].join('\n')
+    await fs.writeFile(inputPath, original, 'utf8')
+
+    const result = await runCli(
+      ['--fix', '--cwd', fixtureDir, '--format', 'json', inputPath],
+      process.cwd(),
+      fakeBin,
+    )
+    expect(result.stderr).toBe('')
+
+    const rewritten = await fs.readFile(inputPath, 'utf8')
+    expect(rewritten).toBe(original.replace('var total = 10', 'const total = 10'))
+  }, 20_000)
+
   it('keeps eslint-skip code fences unchanged while fixing others', async () => {
     const fixtureDir = await createTempDir()
     const fakeBin = await createTempDir()

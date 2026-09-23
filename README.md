@@ -62,6 +62,10 @@ Fix mode:
 
 - `node dist/cli.js --fix "docs/**/*.mdx"`
 
+`--fix` rewrites only the extracted code blocks and MDX expressions/ESM; the
+surrounding Markdown (frontmatter, GFM syntax, prose) is left byte-for-byte
+unchanged. The remark bridge reports diagnostics only and never rewrites files.
+
 ## Publishing
 
 Publish checks and build run automatically via `prepublishOnly`.

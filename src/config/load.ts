@@ -62,7 +62,6 @@ function mergeConfig(
       enabled: cli.noRemark ? false : (user?.remark?.enabled ?? base.remark.enabled),
       cwd: cli.cwd,
       configPath: cli.remarkConfigPath ?? user?.remark?.configPath,
-      applyFixes: cli.fix,
     },
     oxlint: {
       ...base.oxlint,

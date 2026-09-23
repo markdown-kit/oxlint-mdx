@@ -401,16 +401,6 @@ async function main(): Promise<number> {
       mappedDiagnostics.push(
         ...filteredDiagnostics.map((diagnostic) => toMappedFromRemark(diagnostic, document)),
       )
-
-      if (
-        cliOptions.fix &&
-        typeof remarkResult.fixedText === 'string' &&
-        remarkResult.fixedText !== document.text
-      ) {
-        await fs.writeFile(document.filePath, remarkResult.fixedText, 'utf8')
-        document.text = remarkResult.fixedText
-        document.lineStarts = buildLineStarts(document.text)
-      }
     }
   }
 
