@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
+import { extractVirtualUnits } from '../src/extract/markdown.js'
 import { applyEdits, buildFixEdit } from '../src/mapping/remap-fixes.js'
 import type { VirtualUnit } from '../src/types.js'
+import { buildLineStarts } from '../src/utils/lines.js'
+
+function extractCodeUnit(text: string): VirtualUnit {
+  const unit = extractVirtualUnits(
+    { filePath: '/tmp/fixture.md', text, lineStarts: buildLineStarts(text) },
+    { languageMapper: false },
+  ).find((candidate) => candidate.kind === 'fenced-code')
+  if (!unit) {
+    throw new Error('expected a fenced-code unit')
+  }
+  return unit
+}
 
 function createUnit(overrides: Partial<VirtualUnit>): VirtualUnit {
   return {
@@ -41,5 +54,23 @@ describe('fix remapping', () => {
     ])
 
     expect(out).toBe('01AA45BB89')
+  })
+
+  it.each([
+    ['CRLF fence', '# T\r\n\r\n```js\r\nvar a = 1\r\nvar b = 2\r\n```\r\n'],
+    [
+      'CRLF fence in a list item',
+      '# T\r\n\r\n- item\r\n\r\n  ```js\r\n  var a = 1\r\n  var b = 2\r\n  ```\r\n',
+    ],
+    [
+      'blockquoted list fence',
+      '# T\n\n> - item\n>\n>   ```js\n>   var a = 1\n>   var b = 2\n>   ```\n',
+    ],
+  ])('writes a code fix back without altering the %s layout', (_name, text) => {
+    const unit = extractCodeUnit(text)
+    const edit = buildFixEdit(unit, unit.lintText.replaceAll('var', 'const'))
+
+    expect(edit).not.toBeNull()
+    expect(applyEdits(text, [edit!])).toBe(text.replaceAll('var', 'const'))
   })
 })

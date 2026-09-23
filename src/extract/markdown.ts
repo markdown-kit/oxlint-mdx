@@ -127,7 +127,12 @@ function getCodeContentRange(
 
   const contentStart = openingFenceLineEnd + 1
   const closingFenceLineStart = text.lastIndexOf('\n', node.position.end.offset - 1)
-  const contentEnd = Math.max(contentStart, closingFenceLineStart)
+  // With CRLF line endings the `\r` before the closing fence belongs to the line
+  // ending, not the code (the mdast value excludes it); keep it out of the
+  // replaced range so a fix does not drop it.
+  const lineEndingStart =
+    text[closingFenceLineStart - 1] === '\r' ? closingFenceLineStart - 1 : closingFenceLineStart
+  const contentEnd = Math.max(contentStart, lineEndingStart)
   const contentSlice = text.slice(contentStart, contentEnd)
 
   return {
