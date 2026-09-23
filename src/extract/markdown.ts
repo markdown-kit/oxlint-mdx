@@ -176,7 +176,11 @@ function buildCodeBlockRangeMap(
 ): { rangeMap: RangeMapEntry[]; baseIndent: string } {
   const lineStartOffset = getLineStartOffset(text, node.position.start.offset)
   const leadingPrefix = text.slice(lineStartOffset, node.position.start.offset)
-  const baseIndent = LEADING_WHITESPACE_REGEX.exec(leadingPrefix)?.[0] ?? ''
+  // Only container syntax can precede a fence on its line: indentation,
+  // blockquote `>` markers and list markers (`-`, `*`, `+`, `1.`, `1)`). Code
+  // lines are indented to the fence's column, so a list marker counts as the
+  // equivalent run of spaces (`- ```js` → content indented by two spaces).
+  const baseIndent = leadingPrefix.replace(/[^>\s]/gu, ' ')
   const baseIndentLength = baseIndent.length
 
   // The lint body is the mdast value (block indentation stripped); the source
