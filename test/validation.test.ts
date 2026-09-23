@@ -34,6 +34,22 @@ describe('validation', () => {
     ).toThrow('severity must be "error" or "warning"')
   })
 
+  it('falls back to a parse-error code when oxlint omits the diagnostic code', () => {
+    const diagnostic = {
+      message: 'Unexpected token',
+      severity: 'error',
+      filename: '/tmp/example.js',
+      labels: [],
+    }
+
+    expect(parseOxlintJsonOutput(JSON.stringify({ diagnostics: [diagnostic] }))).toEqual({
+      diagnostics: [{ ...diagnostic, code: 'oxc(parse-error)' }],
+    })
+    expect(() =>
+      parseOxlintJsonOutput(JSON.stringify({ diagnostics: [{ ...diagnostic, code: 42 }] })),
+    ).toThrow('code must be a string')
+  })
+
   it('treats oxlint no-file output as an empty diagnostics result', () => {
     expect(parseOxlintJsonOutput('No files found, exiting.')).toEqual({ diagnostics: [] })
   })

@@ -31,6 +31,8 @@ const REMARK_CONFIG_KEYS = new Set([
   'applyDefaultLinkValidation',
 ])
 
+const OXLINT_PARSE_ERROR_CODE = 'oxc(parse-error)'
+
 const OXLINT_CONFIG_KEYS = new Set(['configPath', 'extraArgs'])
 
 function isObjectRecord(value: unknown): value is JsonObject {
@@ -176,9 +178,8 @@ function parseOxlintDiagnostic(value: unknown, context: string): OxlintRawDiagno
     throw new TypeError(`${context}.message must be a string`)
   }
 
-  if (typeof record.code !== 'string') {
-    throw new TypeError(`${context}.code must be a string`)
-  }
+  // Oxlint omits `code` for parser (syntax) errors, which are not tied to a rule.
+  const code = readOptionalString(record.code, `${context}.code`) ?? OXLINT_PARSE_ERROR_CODE
 
   if (record.severity !== 'error' && record.severity !== 'warning') {
     throw new TypeError(`${context}.severity must be "error" or "warning"`)
@@ -204,7 +205,7 @@ function parseOxlintDiagnostic(value: unknown, context: string): OxlintRawDiagno
 
   return {
     message: record.message,
-    code: record.code,
+    code,
     severity: record.severity,
     ...(help ? { help } : {}),
     ...(url ? { url } : {}),

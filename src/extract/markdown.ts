@@ -240,6 +240,26 @@ function parseCodeBlockFileName(meta?: string | null): string | undefined {
   return fileName ?? undefined
 }
 
+const JSX_CONTENT_TYPES = new Set([
+  'mdxJsxFlowElement',
+  'mdxJsxTextElement',
+  'mdxFlowExpression',
+  'mdxTextExpression',
+])
+
+/**
+ * Whether a JSX element's source slice is parseable as JSX: every descendant is
+ * itself a JSX element or an MDX expression. Markdown children (paragraphs,
+ * blockquotes, code, even plain text, which may contain `>` or `}`) are not JSX
+ * syntax, so linting such a slice as JSX reports false parse errors.
+ */
+function hasOnlyJsxContent(node: NodeWithPosition): boolean {
+  return (node.children ?? []).every(
+    (child) =>
+      isNodeWithPosition(child) && JSX_CONTENT_TYPES.has(child.type) && hasOnlyJsxContent(child),
+  )
+}
+
 function walk(node: unknown, visit: (entry: NodeWithPosition) => void): void {
   if (!isNodeWithPosition(node)) {
     return
@@ -494,7 +514,7 @@ export function extractVirtualUnits(
     }
 
     if (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') {
-      if (hasOffsets(node)) {
+      if (hasOffsets(node) && hasOnlyJsxContent(node)) {
         pushJsxElementUnit(node.position.start.offset, node.position.end.offset)
       }
 

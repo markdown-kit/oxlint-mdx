@@ -393,6 +393,69 @@ describe('cli integration', () => {
     expect(output.diagnostics.some((diagnostic) => diagnostic.filePath === inputPath)).toBe(true)
   }, 20_000)
 
+  it('reports oxlint parse errors in code blocks instead of aborting the run', async () => {
+    const fixtureDir = await createTempDir()
+    const inputPath = path.join(fixtureDir, 'syntax-error.md')
+    await fs.writeFile(inputPath, ['# T', '', '```js', 'const = 1', '```', ''].join('\n'), 'utf8')
+
+    const result = await execa(
+      'node',
+      ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', inputPath],
+      { cwd: process.cwd(), reject: false },
+    )
+
+    expect(result.exitCode).toBe(1)
+    const output = JSON.parse(result.stdout) as {
+      diagnostics: Array<{ code: string; range: { start: { line: number } } }>
+    }
+    const parseErrors = output.diagnostics.filter(
+      (diagnostic) => diagnostic.code === 'oxc(parse-error)',
+    )
+    expect(parseErrors.length).toBeGreaterThan(0)
+    expect(parseErrors[0]?.range.start.line).toBe(4)
+  }, 20_000)
+
+  it.each([
+    ['blockquote child', ['# T', '', '<Note>', '', '> quoted', '', '</Note>', '']],
+    [
+      'fenced code child',
+      [
+        '# T',
+        '',
+        '<Tabs>',
+        '',
+        '```js',
+        'const o = { a: 1 }',
+        'console.log(o)',
+        '```',
+        '',
+        '</Tabs>',
+        '',
+      ],
+    ],
+  ])(
+    'does not report parse errors for jsx elements with a markdown %s',
+    async (_name, lines) => {
+      const fixtureDir = await createTempDir()
+      const inputPath = path.join(fixtureDir, 'children.mdx')
+      await fs.writeFile(inputPath, lines.join('\n'), 'utf8')
+
+      const result = await execa(
+        'node',
+        ['--import', 'tsx', 'src/cli.ts', '--no-remark', '--format', 'json', inputPath],
+        { cwd: process.cwd(), reject: false },
+      )
+
+      expect(result.stderr).toBe('')
+      expect(result.exitCode).toBe(0)
+      const output = JSON.parse(result.stdout) as { diagnostics: Array<{ code: string }> }
+      expect(output.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
+        'oxc(parse-error)',
+      )
+    },
+    20_000,
+  )
+
   it('remaps oxlint diagnostics back to markdown source locations', async () => {
     const fixtureDir = await createTempDir()
     const fakeBin = await createTempDir()
