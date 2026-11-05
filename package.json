@@ -52,10 +52,10 @@
     "release": "release-kit"
   },
   "dependencies": {
-    "@oxlint/plugins": "^1.83.0",
-    "execa": "^10.0.1",
+    "@oxlint/plugins": "^1.91.0",
+    "execa": "^10.2.1",
     "fast-glob": "^3.3.3",
-    "oxlint": "1.83.0",
+    "oxlint": "1.91.0",
     "remark-frontmatter": "^5.0.0",
     "remark-lint-fenced-code-flag": "^4.2.0",
     "remark-lint-no-duplicate-headings-in-section": "^4.0.1",
@@ -67,20 +67,20 @@
     "remark-validate-links": "^13.1.0",
     "unified": "^11.0.5",
     "unified-engine": "^11.2.2",
-    "unist-util-visit": "^5.1.0",
+    "unist-util-visit": "^5.2.0",
     "vfile": "^6.0.3"
   },
   "devDependencies": {
-    "@entro314labs/release-kit": "^2.9.4",
+    "@entro314labs/release-kit": "^3.0.0",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^26.6.1",
-    "oxfmt": "^0.68.0",
-    "oxlint-tsgolint": "^7.0.2001",
-    "tsx": "^4.23.13",
+    "@types/node": "^26.6.6",
+    "oxfmt": "^0.76.0",
+    "oxlint-tsgolint": "^7.0.2005",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "5.0.1"
+    "vitest": "5.1.0"
   },
   "engines": {
-    "node": ">=24.19.0"
+    "node": ">=24.22.2"
   }
 }
